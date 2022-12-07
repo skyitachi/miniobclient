@@ -1,5 +1,7 @@
 use inquire::Text;
 
+mod rpc;
+
 fn main() {
 
     let exit_str = String::from("exit");
