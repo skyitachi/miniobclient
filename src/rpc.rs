@@ -1,46 +1,47 @@
+use std::io;
 use std::net::TcpStream;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::io::ErrorKind::ConnectionAborted;
 
 pub struct RpcClient {
     connection: TcpStream,
-    addr: str,
+    addr: String,
 }
 
 impl RpcClient {
 
-    fn connect(&mut self) {
+    fn connect(&mut self) -> Result<(), io::Error>{
         self.connection = TcpStream::connect(&self.addr)?;
-        let mut reader = BufReader::new(&self.connection);
-        let mut buffer: Vec<u8> = Vec::new();
-        reader.read_until(b'\n', &mut buffer);
+        Ok(())
     }
 
-    fn send(&mut self, query: &str) {
+    pub fn send(&mut self, query: &str) -> Result<(), io::Error>{
         let mut i = 0;
         loop {
-            if i > 3 {
-                break;
-            }
-            let result = self.connection.write(query.as_bytes())?;
-
-            match result {
-                Ok(bytes_written) => {
-                    println!("send ok");
-                    break
+            let send_result = self.connection.write(query.as_bytes());
+            match send_result {
+                Ok(written) => {
+                    println!("send {} bytes to server", written);
+                    break;
                 }
-                Err(err) => {
-                    if err == ConnectionAborted {
-                        self.connect()
+                Err(e) => {
+                    if e.kind() == ErrorKind::BrokenPipe {
+                        self.connect()?;
                     }
                 }
             }
-            i += 1
+            i += 1;
+            if i > 3 {
+                break;
+            }
         }
+        Ok(())
     }
-    // pub fn new(addr: &str) -> RpcClient {
-    //     RpcClient{
-    //         addr: *addr,
-    //     }
-    // }
+
+    pub fn new(addr: String) -> Result<RpcClient, io::Error> {
+        Ok(RpcClient{
+            addr: addr.clone(),
+            connection: TcpStream::connect(&addr.clone())?
+        })
+    }
 }
