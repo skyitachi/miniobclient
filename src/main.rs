@@ -1,3 +1,4 @@
+use std::fs::read;
 use std::io::{ErrorKind, Write};
 use std::net::TcpStream;
 use std::process;
@@ -25,33 +26,36 @@ mod tests {
 fn main() {
     let mut client = RpcClient::new(String::from("localhost:6789")).unwrap();
 
+    let exit_str = String::from("exit");
+    let mut buffer : [u8; 8096] = [0;8096];
     loop {
-        let send_result = client.send("hello world\n");
-        match send_result {
-            Ok(()) => {
-                println!("send ok");
-                sleep(Duration::from_secs(1));
-            }
-            Err(err) => {
-                println!("send error {}", err);
-                sleep(Duration::from_secs(2));
-            }
+        let input = Text::new("obclient >").prompt();
+        match input {
+            Ok(input) => {
+                if input == exit_str {
+                    break;
+                }
+                let send_result = client.send(&input);
+                match send_result {
+                    Ok(()) => {
+                        let read_result = client.read(&mut buffer);
+                        match read_result {
+                            Ok(len) => {
+                                let parsed = std::str::from_utf8(&buffer[0..len]).unwrap();
+                                print!("{}", parsed);
+                            }
+                            Err(e) => {
+                                continue;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        continue;
+                    }
+                }
+            },
+            Err(_) => println!("error happened")
         }
-
     }
-
-    // let exit_str = String::from("exit");
-    // loop {
-    //     let input = Text::new("obclient >").prompt();
-    //     match input {
-    //         Ok(input) => {
-    //             if input == exit_str {
-    //                 break;
-    //             }
-    //             println!("hello {}", input)
-    //         },
-    //         Err(_) => println!("error happened")
-    //     }
-    // }
-    // println!("bye!!!")
+    println!("bye!!!")
 }
